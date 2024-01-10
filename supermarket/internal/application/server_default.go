@@ -43,8 +43,11 @@ func (s *Server) Start() error {
 	router.Route("/products", func(router chi.Router) {
 		router.Get("/", handler.GetProductsHandler)
 		router.Get("/{id}", handler.GetProductHandler)
-		router.Get("/search", handler.SearchProductsHandler)
+		router.Get("/search", handler.SearchProductsByPriceHandler)
 		router.Post("/", handler.CreateProductHandler)
+		router.Patch("/{id}", handler.UpdateProductHandler)
+		router.Delete("/{id}", handler.DeleteProductHandler)
+		router.Put("/", handler.UpdateOrCreateProductHandler)
 	})
 
 	// start server
