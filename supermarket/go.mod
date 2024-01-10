@@ -1,4 +1,4 @@
-module clase2
+module supermarket
 
 go 1.21.5
 
