@@ -64,25 +64,36 @@ func (ps *ProductService) SearchProducts(priceGt string) ([]Product, error) {
 	return products, nil
 }
 
-// CreateProduct adds a product to the repository.
-func (ps *ProductService) CreateProduct(product Product) (Product, error) {
-	// no value can be empty, except is_published, where empty is false
+// ValidateProduct validates the product parameters.
+func (ps *ProductService) ValidateProduct(product Product) error {
+	// no value can be empty. Except is_published, where empty means false
 	if product.Name == "" || product.Quantity == 0 || product.CodeValue == "" || product.Expiration == "" || product.Price == 0 {
-		return product, errInvalidProduct
+		return errInvalidProduct
 	}
 
 	// check if CodeValue already exists
 	products := ps.ProductRepository.GetProducts()
 	for _, p := range products {
 		if p.CodeValue == product.CodeValue {
-			return product, errDuplicateCodeValue
+			return errDuplicateCodeValue
 		}
 	}
 
 	// product.Expiration must be in MM/DD/YYYY format
 	_, err := time.Parse("01/02/2006", product.Expiration)
 	if err != nil {
-		return product, errInvalidProduct
+		return errInvalidProduct
+	}
+
+	return nil
+}
+
+// CreateProduct adds a product to the repository.
+func (ps *ProductService) CreateProduct(product Product) (Product, error) {
+	// validate product
+	err := ps.ValidateProduct(product)
+	if err != nil {
+		return product, err
 	}
 
 	// add product to repository
