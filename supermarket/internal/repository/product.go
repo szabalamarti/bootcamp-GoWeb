@@ -5,26 +5,20 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"supermarket/internal"
 )
 
-type Product struct {
-	Id          int     `json:"id"`
-	Name        string  `json:"name"`
-	Quantity    int     `json:"quantity"`
-	CodeValue   string  `json:"code_value"`
-	IsPublished bool    `json:"is_published"`
-	Expiration  string  `json:"expiration"`
-	Price       float64 `json:"price"`
-}
+type Product = internal.Product
 
 type ProductRepository struct {
-	Products []Product
+	Products map[int]Product
 	LastId   int
 }
 
 var (
-	errLoadProducts = errors.New("failed to load products")
-	errUnmarshal    = errors.New("failed to unmarshal products")
+	errLoadProducts    = errors.New("failed to load products")
+	errUnmarshal       = errors.New("failed to unmarshal products")
+	errProductNotFound = errors.New("product not found")
 )
 
 // LoadProducts loads the products from a JSON file into the repository.
@@ -34,20 +28,55 @@ func (ps *ProductRepository) LoadProducts(fileName string) error {
 		return errLoadProducts
 	}
 	defer file.Close()
-
-	err = json.NewDecoder(file).Decode(&ps.Products)
+	var products []Product
+	err = json.NewDecoder(file).Decode(&products)
 	if err != nil {
 		return errUnmarshal
 	}
-	// TODO: Unsorted products
-	ps.LastId = ps.Products[len(ps.Products)-1].Id
-
+	ps.Products = make(map[int]Product)
+	for _, product := range products {
+		ps.Products[product.Id] = product
+	}
+	ps.LastId = len(ps.Products)
 	return nil
 }
 
-// AddProduct adds a product to the repository.
-func (ps *ProductRepository) AddProduct(product Product) {
-	ps.Products = append(ps.Products, product)
+// GetProducts returns all products from the repository.
+func (ps *ProductRepository) GetProducts() []Product {
+	products := make([]Product, 0, len(ps.Products))
+	for _, product := range ps.Products {
+		products = append(products, product)
+	}
+	return products
+}
+
+// GetProduct returns a product from the repository by id.
+func (ps *ProductRepository) GetProduct(id int) (Product, error) {
+	product, ok := ps.Products[id]
+	if !ok {
+		return Product{}, errProductNotFound
+	}
+	return product, nil
+}
+
+// SearchProducts returns the products from the repository that have a price greater than priceGt.
+func (ps *ProductRepository) SearchProducts(priceGt float64) ([]Product, error) {
+	products := ps.GetProducts()
+	var filteredProducts []Product
+	for _, product := range products {
+		if product.Price > priceGt {
+			filteredProducts = append(filteredProducts, product)
+		}
+	}
+	return filteredProducts, nil
+}
+
+// CreateProduct adds a product to the repository.
+func (ps *ProductRepository) CreateProduct(product Product) (Product, error) {
+	ps.LastId++
+	product.Id = ps.LastId
+	ps.Products[product.Id] = product
+	return product, nil
 }
 
 // PrintProductsInfo prints the total of products loaded to the repository.
