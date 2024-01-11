@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"strconv"
 	"supermarket/internal"
 	"time"
@@ -54,36 +55,6 @@ func (ps *ProductService) SearchProductsByPrice(priceGt string) ([]Product, erro
 	}
 
 	return products, nil
-}
-
-// ValidateProduct validates the product parameters.
-func (ps *ProductService) ValidateProduct(product Product, isUpdate bool) error {
-	// no value can be empty. Except is_published, where empty means false
-	if product.Name == "" || product.Quantity == 0 || product.CodeValue == "" || product.Expiration == "" || product.Price == 0 {
-		return internal.ErrInvalidProduct
-	}
-
-	// check if CodeValue already exists and ids are different
-	products := ps.ProductRepository.Get()
-	for _, p := range products {
-		if p.CodeValue == product.CodeValue {
-			if isUpdate {
-				if p.Id != product.Id {
-					return internal.ErrDuplicateCodeValue
-				}
-			} else {
-				return internal.ErrDuplicateCodeValue
-			}
-		}
-	}
-
-	// product.Expiration must be in MM/DD/YYYY format
-	_, err := time.Parse("01/02/2006", product.Expiration)
-	if err != nil {
-		return internal.ErrInvalidProduct
-	}
-
-	return nil
 }
 
 // CreateProduct adds a product to the repository.
@@ -147,6 +118,35 @@ func (ps *ProductService) DeleteProduct(id string) error {
 	err = ps.ProductRepository.Delete(productId)
 	if err != nil {
 		return internal.ErrProductNotFound
+	}
+
+	return nil
+}
+
+// ValidateProduct validates the product parameters.
+func (ps *ProductService) ValidateProduct(product Product, isUpdate bool) error {
+	// no value can be empty. Except is_published, where empty means false
+	if product.Name == "" || product.Quantity == 0 || product.CodeValue == "" || product.Expiration == "" || product.Price == 0 {
+		return internal.ErrInvalidProduct
+	}
+
+	// check if CodeValue already exists and ids are different
+	products := ps.ProductRepository.Get()
+	for _, p := range products {
+		if p.CodeValue != product.CodeValue {
+			continue
+		}
+		if isUpdate && p.Id == product.Id {
+			continue
+		}
+		fmt.Println(p, product)
+		return internal.ErrDuplicateCodeValue
+	}
+
+	// product.Expiration must be in MM/DD/YYYY format
+	_, err := time.Parse("01/02/2006", product.Expiration)
+	if err != nil {
+		return internal.ErrInvalidProduct
 	}
 
 	return nil

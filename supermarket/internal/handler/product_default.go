@@ -1,8 +1,12 @@
-package handlers
+package handler
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
+	"strconv"
 	"supermarket/internal"
 	"supermarket/internal/platform/web/request"
 	"supermarket/internal/platform/web/response"
@@ -11,6 +15,7 @@ import (
 )
 
 type Product = internal.Product
+
 type ProductServiceInterface = internal.ProductServiceInterface
 
 type ProductHandler struct {
@@ -32,7 +37,9 @@ func (h *ProductHandler) GetPingHandler(w http.ResponseWriter, r *http.Request) 
 // GetProductsHandler returns the products from the repository.
 func (h *ProductHandler) GetProductsHandler(w http.ResponseWriter, r *http.Request) {
 	products := h.ProductService.GetProducts()
-	response.JSON(w, http.StatusOK, "products fetched successfully", products)
+	// serialize products to ProductResponseJSON
+	productsResponse := serializeProductsToProductsResponseJSON(products)
+	response.JSON(w, http.StatusOK, "products fetched successfully", productsResponse)
 }
 
 // GetProductHandler returns a product from the repository by id.
@@ -50,7 +57,9 @@ func (h *ProductHandler) GetProductHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	response.JSON(w, http.StatusOK, "product fetched successfully", product)
+	// serialize product to ProductResponseJSON
+	productResponse := serializeProductToProductResponseJSON(product)
+	response.JSON(w, http.StatusOK, "product fetched successfully", productResponse)
 }
 
 // SearchProductsHandler returns the products from the repository that have a price greater than priceGt.
@@ -66,18 +75,32 @@ func (h *ProductHandler) SearchProductsByPriceHandler(w http.ResponseWriter, r *
 		return
 	}
 
-	response.JSON(w, http.StatusOK, "products fetched successfully", products)
+	// serialize products to ProductResponseJSON
+	productsResponse := serializeProductsToProductsResponseJSON(products)
+	response.JSON(w, http.StatusOK, "products fetched successfully", productsResponse)
 }
 
 // CreateProductHandler adds a product to the repository.
 func (h *ProductHandler) CreateProductHandler(w http.ResponseWriter, r *http.Request) {
-	var product Product
-	err := request.JSON(r, &product)
+	// authorization
+	err := Authorize(r, w)
+	if err != nil {
+		response.Errorw(w, http.StatusUnauthorized, err)
+		return
+	}
+
+	// read product from request
+	var productRequest ProductRequestJSON
+	err = request.JSON(r, &productRequest)
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, "bad request")
 		return
 	}
 
+	// deserialize productRequest to Product
+	product := deserializeProductJSONToProduct(productRequest)
+
+	// create product
 	product, err = h.ProductService.CreateProduct(product)
 	if err != nil {
 		switch {
@@ -91,18 +114,61 @@ func (h *ProductHandler) CreateProductHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	response.JSON(w, http.StatusOK, "product created successfully", product)
+	// serialize product to ProductResponseJSON
+	productResponse := serializeProductToProductResponseJSON(product)
+	response.JSON(w, http.StatusOK, "product created successfully", productResponse)
 }
 
 // UpdateOrCreateProductHandler updates a product in the repository or creates it if it doesn't exist.
 func (h *ProductHandler) UpdateOrCreateProductHandler(w http.ResponseWriter, r *http.Request) {
-	var product Product
-	err := request.JSON(r, &product)
+	// authorization
+	err := Authorize(r, w)
+	if err != nil {
+		response.Errorw(w, http.StatusUnauthorized, err)
+		return
+	}
+
+	// get id from url
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	// get body to []byte
+	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, "bad request")
 		return
 	}
 
+	// create a map to validate the body
+	var bodyMap map[string]any
+	err = json.Unmarshal(body, &bodyMap)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "bad request")
+		return
+	}
+
+	err = validateKeyExistence(bodyMap, "name", "quantity", "code_value", "expiration", "price")
+	if err != nil {
+		response.Errorw(w, http.StatusBadRequest, err)
+		return
+	}
+
+	// read product from bytes
+	var productRequest ProductRequestJSON
+	err = json.Unmarshal(body, &productRequest)
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "bad request")
+		return
+	}
+
+	// deserialize productRequest to Product
+	product := deserializeProductJSONToProduct(productRequest)
+	product.Id = id
+
+	// update or create product
 	product, err = h.ProductService.UpdateOrCreateProduct(product)
 	if err != nil {
 		switch {
@@ -116,13 +182,30 @@ func (h *ProductHandler) UpdateOrCreateProductHandler(w http.ResponseWriter, r *
 		return
 	}
 
-	response.JSON(w, http.StatusOK, "product updated or created successfully", product)
+	// serialize product to ProductResponseJSON
+	productResponse := serializeProductToProductResponseJSON(product)
+	response.JSON(w, http.StatusOK, "product updated or created successfully", productResponse)
 }
 
 // UpdateProductHandler updates a product in the repository.
 func (h *ProductHandler) UpdateProductHandler(w http.ResponseWriter, r *http.Request) {
+	// authorization
+	err := Authorize(r, w)
+	if err != nil {
+		response.Errorw(w, http.StatusUnauthorized, err)
+		return
+	}
+
+	// get id from url
+	id, err := strconv.Atoi(chi.URLParam(r, "id"))
+	if err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	// find original product to patch
 	var originalProduct Product
-	originalProduct, err := h.ProductService.GetProduct(chi.URLParam(r, "id"))
+	originalProduct, err = h.ProductService.GetProduct(chi.URLParam(r, "id"))
 	if err != nil {
 		switch {
 		case errors.Is(err, internal.ErrInvalidID):
@@ -135,13 +218,22 @@ func (h *ProductHandler) UpdateProductHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	err = request.JSON(r, &originalProduct)
+	// serialize originalProduct to ProductRequestJSON
+	updateProductRequest := serializeProductToProductRequestJSON(originalProduct)
+
+	// read productRequest from request into updateProductRequest
+	err = request.JSON(r, &updateProductRequest)
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, "bad request")
 		return
 	}
 
-	originalProduct, err = h.ProductService.UpdateProduct(originalProduct)
+	// deserialize updateProductRequest to Product
+	updateProduct := deserializeProductJSONToProduct(updateProductRequest)
+	updateProduct.Id = id
+
+	// update product
+	updateProduct, err = h.ProductService.UpdateProduct(updateProduct)
 	if err != nil {
 		switch {
 		case errors.Is(err, internal.ErrInvalidProduct):
@@ -154,12 +246,22 @@ func (h *ProductHandler) UpdateProductHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	response.JSON(w, http.StatusOK, "Product updated successfully", originalProduct)
+	// serialize updateProduct to ProductResponseJSON
+	updateProductResponse := serializeProductToProductResponseJSON(updateProduct)
+	response.JSON(w, http.StatusOK, "Product updated successfully", updateProductResponse)
 }
 
 // DeleteProductHandler deletes a product from the repository by id.
 func (h *ProductHandler) DeleteProductHandler(w http.ResponseWriter, r *http.Request) {
-	err := h.ProductService.DeleteProduct(chi.URLParam(r, "id"))
+	// authorization
+	err := Authorize(r, w)
+	if err != nil {
+		response.Errorw(w, http.StatusUnauthorized, err)
+		return
+	}
+
+	// delete product
+	err = h.ProductService.DeleteProduct(chi.URLParam(r, "id"))
 	if err != nil {
 		switch {
 		case errors.Is(err, internal.ErrInvalidID):
@@ -171,5 +273,14 @@ func (h *ProductHandler) DeleteProductHandler(w http.ResponseWriter, r *http.Req
 		}
 	}
 
-	response.JSON(w, http.StatusOK, "Product deleted successfully", nil)
+	response.Text(w, http.StatusOK, "Product deleted successfully")
+}
+
+func validateKeyExistence(m map[string]any, keys ...string) error {
+	for _, key := range keys {
+		if _, ok := m[key]; !ok {
+			return fmt.Errorf("key %s not found", key)
+		}
+	}
+	return nil
 }

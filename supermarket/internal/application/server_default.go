@@ -2,7 +2,7 @@ package application
 
 import (
 	"net/http"
-	"supermarket/internal/handlers"
+	"supermarket/internal/handler"
 	"supermarket/internal/repository"
 	"supermarket/internal/service"
 
@@ -35,7 +35,7 @@ func (s *Server) Start() error {
 
 	// create service and handler
 	service := service.NewProductService(repository)
-	handler := handlers.NewProductHandler(service)
+	handler := handler.NewProductHandler(service)
 
 	// create router and routes
 	router := chi.NewRouter()
@@ -47,7 +47,7 @@ func (s *Server) Start() error {
 		router.Post("/", handler.CreateProductHandler)
 		router.Patch("/{id}", handler.UpdateProductHandler)
 		router.Delete("/{id}", handler.DeleteProductHandler)
-		router.Put("/", handler.UpdateOrCreateProductHandler)
+		router.Put("/{id}", handler.UpdateOrCreateProductHandler)
 	})
 
 	// start server
