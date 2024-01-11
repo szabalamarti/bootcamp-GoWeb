@@ -1,65 +1,62 @@
 package repository
 
 import (
-	"encoding/json"
-	"fmt"
-	"os"
 	"supermarket/internal"
 )
 
 type Product = internal.Product
 
 type ProductRepository struct {
+	Storage  internal.ProductStorageInterface
 	Products map[int]Product
 	LastId   int
 }
 
 // NewProductRepository creates a new ProductRepository.
-func NewProductRepository() *ProductRepository {
+func NewProductRepository(storage internal.ProductStorageInterface) *ProductRepository {
 	return &ProductRepository{
-		Products: make(map[int]Product),
-		LastId:   0,
+		Storage: storage,
 	}
 }
 
-// PrintProductsInfo prints the total of products loaded to the repository.
-func (ps *ProductRepository) PrintProductsInfo() {
-	totalProducts := len(ps.Products)
-	fmt.Printf("Loaded a total of %d products to service.\n", totalProducts)
-}
+// LoadProducts loads products from storage to the repository.
+func (pr *ProductRepository) LoadProducts() error {
+	products, err := pr.Storage.LoadProducts()
+	if err != nil {
+		return err
+	}
+	pr.Products = products
 
-// LoadProducts loads the products from a JSON file into the repository.
-func (ps *ProductRepository) LoadProducts(fileName string) error {
-	file, err := os.Open(fileName)
-	if err != nil {
-		return internal.ErrLoadProducts
+	// Set LastId to the highest product ID
+	pr.LastId = 0
+	for id := range pr.Products {
+		if id > pr.LastId {
+			pr.LastId = id
+		}
 	}
-	defer file.Close()
-	var products []Product
-	err = json.NewDecoder(file).Decode(&products)
-	if err != nil {
-		return internal.ErrUnmarshal
-	}
-	ps.Products = make(map[int]Product)
-	for _, product := range products {
-		ps.Products[product.Id] = product
-	}
-	ps.LastId = len(ps.Products)
+
 	return nil
 }
 
+// SaveProducts saves products from the repository to storage.
+func (pr *ProductRepository) SaveProducts() error {
+	return pr.Storage.SaveProducts(pr.Products)
+}
+
 // Get returns all products from the repository.
-func (ps *ProductRepository) Get() []Product {
-	products := make([]Product, 0, len(ps.Products))
-	for _, product := range ps.Products {
+func (pr *ProductRepository) Get() []Product {
+	pr.LoadProducts()
+	products := make([]Product, 0, len(pr.Products))
+	for _, product := range pr.Products {
 		products = append(products, product)
 	}
 	return products
 }
 
 // GetById returns a product from the repository by id.
-func (ps *ProductRepository) GetById(id int) (Product, error) {
-	product, ok := ps.Products[id]
+func (pr *ProductRepository) GetById(id int) (Product, error) {
+	pr.LoadProducts()
+	product, ok := pr.Products[id]
 	if !ok {
 		return Product{}, internal.ErrProductNotFound
 	}
@@ -67,8 +64,9 @@ func (ps *ProductRepository) GetById(id int) (Product, error) {
 }
 
 // SearchByPrice returns the products from the repository that have a price greater than priceGt.
-func (ps *ProductRepository) SearchByPrice(priceGt float64) ([]Product, error) {
-	products := ps.Get()
+func (pr *ProductRepository) SearchByPrice(priceGt float64) ([]Product, error) {
+	pr.LoadProducts()
+	products := pr.Get()
 	var filteredProducts []Product
 	for _, product := range products {
 		if product.Price > priceGt {
@@ -79,39 +77,47 @@ func (ps *ProductRepository) SearchByPrice(priceGt float64) ([]Product, error) {
 }
 
 // Save adds a product to the repository.
-func (ps *ProductRepository) Save(product Product) (Product, error) {
-	ps.LastId++
-	product.Id = ps.LastId
-	ps.Products[product.Id] = product
+func (pr *ProductRepository) Save(product Product) (Product, error) {
+	pr.LoadProducts()
+	pr.LastId++
+	product.Id = pr.LastId
+	pr.Products[product.Id] = product
+	pr.SaveProducts()
 	return product, nil
 }
 
 // SaveOrUpdate updates a product in the repository or creates it if it doesn't exist.
-func (ps *ProductRepository) SaveOrUpdate(product Product) (Product, error) {
-	_, ok := ps.Products[product.Id]
+func (pr *ProductRepository) SaveOrUpdate(product Product) (Product, error) {
+	pr.LoadProducts()
+	_, ok := pr.Products[product.Id]
 	if !ok {
-		return ps.Save(product)
+		return pr.Save(product)
 	}
-	ps.Products[product.Id] = product
+	pr.Products[product.Id] = product
+	pr.SaveProducts()
 	return product, nil
 }
 
 // Update updates a product in the repository.
-func (ps *ProductRepository) Update(product Product) (Product, error) {
-	_, ok := ps.Products[product.Id]
+func (pr *ProductRepository) Update(product Product) (Product, error) {
+	pr.LoadProducts()
+	_, ok := pr.Products[product.Id]
 	if !ok {
 		return Product{}, internal.ErrProductNotFound
 	}
-	ps.Products[product.Id] = product
+	pr.Products[product.Id] = product
+	pr.SaveProducts()
 	return product, nil
 }
 
 // Delete deletes a product from the repository by id.
-func (ps *ProductRepository) Delete(id int) error {
-	_, ok := ps.Products[id]
+func (pr *ProductRepository) Delete(id int) error {
+	pr.LoadProducts()
+	_, ok := pr.Products[id]
 	if !ok {
 		return internal.ErrProductNotFound
 	}
-	delete(ps.Products, id)
+	delete(pr.Products, id)
+	pr.SaveProducts()
 	return nil
 }

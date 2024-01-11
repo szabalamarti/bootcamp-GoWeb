@@ -271,6 +271,7 @@ func (h *ProductHandler) DeleteProductHandler(w http.ResponseWriter, r *http.Req
 		default:
 			response.Error(w, http.StatusInternalServerError, "internal server error")
 		}
+		return
 	}
 
 	response.Text(w, http.StatusOK, "Product deleted successfully")
