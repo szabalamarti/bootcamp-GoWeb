@@ -1,6 +1,6 @@
 package handler
 
-type ProductRequestJSON struct {
+type ProductRequest struct {
 	Name        string  `json:"name"`
 	Quantity    int     `json:"quantity"`
 	CodeValue   string  `json:"code_value"`
@@ -9,7 +9,7 @@ type ProductRequestJSON struct {
 	Price       float64 `json:"price"`
 }
 
-type ProductResponseJSON struct {
+type ProductResponse struct {
 	Id          int     `json:"id"`
 	Name        string  `json:"name"`
 	Quantity    int     `json:"quantity"`
@@ -19,7 +19,7 @@ type ProductResponseJSON struct {
 	Price       float64 `json:"price"`
 }
 
-func deserializeProductJSONToProduct(productRequest ProductRequestJSON) Product {
+func ProductRequestToProduct(productRequest ProductRequest) Product {
 	return Product{
 		Name:        productRequest.Name,
 		Quantity:    productRequest.Quantity,
@@ -30,8 +30,8 @@ func deserializeProductJSONToProduct(productRequest ProductRequestJSON) Product 
 	}
 }
 
-func serializeProductToProductRequestJSON(product Product) ProductRequestJSON {
-	return ProductRequestJSON{
+func ProductToProductRequest(product Product) ProductRequest {
+	return ProductRequest{
 		Name:        product.Name,
 		Quantity:    product.Quantity,
 		CodeValue:   product.CodeValue,
@@ -41,8 +41,8 @@ func serializeProductToProductRequestJSON(product Product) ProductRequestJSON {
 	}
 }
 
-func serializeProductToProductResponseJSON(product Product) ProductResponseJSON {
-	return ProductResponseJSON{
+func ProductToProductResponse(product Product) ProductResponse {
+	return ProductResponse{
 		Id:          product.Id,
 		Name:        product.Name,
 		Quantity:    product.Quantity,
@@ -53,10 +53,10 @@ func serializeProductToProductResponseJSON(product Product) ProductResponseJSON 
 	}
 }
 
-func serializeProductsToProductsResponseJSON(products []Product) []ProductResponseJSON {
-	productsResponse := make([]ProductResponseJSON, len(products))
+func ProductsToProductsResponse(products []Product) []ProductResponse {
+	productsResponse := make([]ProductResponse, len(products))
 	for i, product := range products {
-		productsResponse[i] = serializeProductToProductResponseJSON(product)
+		productsResponse[i] = ProductToProductResponse(product)
 	}
 	return productsResponse
 }

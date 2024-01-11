@@ -38,7 +38,7 @@ func (h *ProductHandler) GetPingHandler(w http.ResponseWriter, r *http.Request) 
 func (h *ProductHandler) GetProductsHandler(w http.ResponseWriter, r *http.Request) {
 	products := h.ProductService.GetProducts()
 	// serialize products to ProductResponseJSON
-	productsResponse := serializeProductsToProductsResponseJSON(products)
+	productsResponse := ProductsToProductsResponse(products)
 	response.JSON(w, http.StatusOK, "products fetched successfully", productsResponse)
 }
 
@@ -58,7 +58,7 @@ func (h *ProductHandler) GetProductHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	// serialize product to ProductResponseJSON
-	productResponse := serializeProductToProductResponseJSON(product)
+	productResponse := ProductToProductResponse(product)
 	response.JSON(w, http.StatusOK, "product fetched successfully", productResponse)
 }
 
@@ -76,7 +76,7 @@ func (h *ProductHandler) SearchProductsByPriceHandler(w http.ResponseWriter, r *
 	}
 
 	// serialize products to ProductResponseJSON
-	productsResponse := serializeProductsToProductsResponseJSON(products)
+	productsResponse := ProductsToProductsResponse(products)
 	response.JSON(w, http.StatusOK, "products fetched successfully", productsResponse)
 }
 
@@ -90,7 +90,7 @@ func (h *ProductHandler) CreateProductHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	// read product from request
-	var productRequest ProductRequestJSON
+	var productRequest ProductRequest
 	err = request.JSON(r, &productRequest)
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, "bad request")
@@ -98,7 +98,7 @@ func (h *ProductHandler) CreateProductHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	// deserialize productRequest to Product
-	product := deserializeProductJSONToProduct(productRequest)
+	product := ProductRequestToProduct(productRequest)
 
 	// create product
 	product, err = h.ProductService.CreateProduct(product)
@@ -115,7 +115,7 @@ func (h *ProductHandler) CreateProductHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	// serialize product to ProductResponseJSON
-	productResponse := serializeProductToProductResponseJSON(product)
+	productResponse := ProductToProductResponse(product)
 	response.JSON(w, http.StatusOK, "product created successfully", productResponse)
 }
 
@@ -157,7 +157,7 @@ func (h *ProductHandler) UpdateOrCreateProductHandler(w http.ResponseWriter, r *
 	}
 
 	// read product from bytes
-	var productRequest ProductRequestJSON
+	var productRequest ProductRequest
 	err = json.Unmarshal(body, &productRequest)
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, "bad request")
@@ -165,7 +165,7 @@ func (h *ProductHandler) UpdateOrCreateProductHandler(w http.ResponseWriter, r *
 	}
 
 	// deserialize productRequest to Product
-	product := deserializeProductJSONToProduct(productRequest)
+	product := ProductRequestToProduct(productRequest)
 	product.Id = id
 
 	// update or create product
@@ -182,8 +182,8 @@ func (h *ProductHandler) UpdateOrCreateProductHandler(w http.ResponseWriter, r *
 		return
 	}
 
-	// serialize product to ProductResponseJSON
-	productResponse := serializeProductToProductResponseJSON(product)
+	// serialize product to ProductResponse
+	productResponse := ProductToProductResponse(product)
 	response.JSON(w, http.StatusOK, "product updated or created successfully", productResponse)
 }
 
@@ -218,8 +218,8 @@ func (h *ProductHandler) UpdateProductHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// serialize originalProduct to ProductRequestJSON
-	updateProductRequest := serializeProductToProductRequestJSON(originalProduct)
+	// serialize originalProduct to ProductRequest
+	updateProductRequest := ProductToProductRequest(originalProduct)
 
 	// read productRequest from request into updateProductRequest
 	err = request.JSON(r, &updateProductRequest)
@@ -229,7 +229,7 @@ func (h *ProductHandler) UpdateProductHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	// deserialize updateProductRequest to Product
-	updateProduct := deserializeProductJSONToProduct(updateProductRequest)
+	updateProduct := ProductRequestToProduct(updateProductRequest)
 	updateProduct.Id = id
 
 	// update product
@@ -247,7 +247,7 @@ func (h *ProductHandler) UpdateProductHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	// serialize updateProduct to ProductResponseJSON
-	updateProductResponse := serializeProductToProductResponseJSON(updateProduct)
+	updateProductResponse := ProductToProductResponse(updateProduct)
 	response.JSON(w, http.StatusOK, "Product updated successfully", updateProductResponse)
 }
 
