@@ -15,8 +15,8 @@ var (
 	ErrRequestJSONInvalid = errors.New("request json invalid")
 )
 
-// ReadRequestJSON decodes json from request body to ptr
-func ReadRequestJSON(r *http.Request, ptr any) (err error) {
+// JSON decodes json from request body to ptr
+func JSON(r *http.Request, ptr any) (err error) {
 	// check content type
 	if r.Header.Get("Content-Type") != "application/json" {
 		err = ErrRequestContentTypeNotJSON

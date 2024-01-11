@@ -10,8 +10,12 @@ type Response struct {
 	Data    interface{} `json:"data"`
 }
 
-func WriteResponseJSON(w http.ResponseWriter, statusCode int, message string, data interface{}) {
+func JSON(w http.ResponseWriter, statusCode int, message string, body any) {
+	if body == nil {
+		w.WriteHeader(statusCode)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(Response{Message: message, Data: data})
+	json.NewEncoder(w).Encode(Response{Message: message, Data: body})
 }

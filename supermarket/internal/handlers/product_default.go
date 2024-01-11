@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"supermarket/internal"
 	"supermarket/internal/platform/web/request"
@@ -18,31 +19,31 @@ type ProductHandler struct {
 
 // GetPingHandler returns a pong message.
 func (h *ProductHandler) GetPingHandler(w http.ResponseWriter, r *http.Request) {
-	response.WriteResponseText(w, http.StatusOK, "pong")
+	response.Text(w, http.StatusOK, "pong")
 }
 
 // GetProductsHandler returns the products from the repository.
 func (h *ProductHandler) GetProductsHandler(w http.ResponseWriter, r *http.Request) {
 	products := h.ProductService.GetProducts()
-	response.WriteResponseJSON(w, http.StatusOK, "Products fetched successfully", products)
+	response.JSON(w, http.StatusOK, "products fetched successfully", products)
 }
 
 // GetProductHandler returns a product from the repository by id.
 func (h *ProductHandler) GetProductHandler(w http.ResponseWriter, r *http.Request) {
 	product, err := h.ProductService.GetProduct(chi.URLParam(r, "id"))
 	if err != nil {
-		switch err {
-		case internal.ErrInvalidID:
-			response.WriteError(w, http.StatusBadRequest, err)
-		case internal.ErrProductNotFound:
-			response.WriteError(w, http.StatusNotFound, err)
+		switch {
+		case errors.Is(err, internal.ErrInvalidID):
+			response.Errorw(w, http.StatusBadRequest, err)
+		case errors.Is(err, internal.ErrProductNotFound):
+			response.Errorw(w, http.StatusNotFound, err)
 		default:
-			response.WriteError(w, http.StatusInternalServerError, err)
+			response.Error(w, http.StatusInternalServerError, "internal server error")
 		}
 		return
 	}
 
-	response.WriteResponseJSON(w, http.StatusOK, "Product fetched successfully", product)
+	response.JSON(w, http.StatusOK, "product fetched successfully", product)
 }
 
 // SearchProductsHandler returns the products from the repository that have a price greater than priceGt.
@@ -51,64 +52,64 @@ func (h *ProductHandler) SearchProductsByPriceHandler(w http.ResponseWriter, r *
 	if err != nil {
 		switch err {
 		case internal.ErrInvalidPriceGt:
-			response.WriteError(w, http.StatusBadRequest, err)
+			response.Errorw(w, http.StatusBadRequest, err)
 		default:
-			response.WriteError(w, http.StatusInternalServerError, err)
+			response.Error(w, http.StatusInternalServerError, "internal server error")
 		}
 		return
 	}
 
-	response.WriteResponseJSON(w, http.StatusOK, "Products fetched successfully", products)
+	response.JSON(w, http.StatusOK, "products fetched successfully", products)
 }
 
 // CreateProductHandler adds a product to the repository.
 func (h *ProductHandler) CreateProductHandler(w http.ResponseWriter, r *http.Request) {
 	var product Product
-	err := request.ReadRequestJSON(r, &product)
+	err := request.JSON(r, &product)
 	if err != nil {
-		response.WriteError(w, http.StatusBadRequest, err)
+		response.Error(w, http.StatusBadRequest, "bad request")
 		return
 	}
 
 	product, err = h.ProductService.CreateProduct(product)
 	if err != nil {
-		switch err {
-		case internal.ErrInvalidProduct:
-			response.WriteError(w, http.StatusBadRequest, err)
-		case internal.ErrDuplicateCodeValue:
-			response.WriteError(w, http.StatusConflict, err)
+		switch {
+		case errors.Is(err, internal.ErrInvalidProduct):
+			response.Errorw(w, http.StatusBadRequest, err)
+		case errors.Is(err, internal.ErrDuplicateCodeValue):
+			response.Errorw(w, http.StatusConflict, err)
 		default:
-			response.WriteError(w, http.StatusInternalServerError, err)
+			response.Error(w, http.StatusInternalServerError, "internal server error")
 		}
 		return
 	}
 
-	response.WriteResponseJSON(w, http.StatusOK, "Product created successfully", product)
+	response.JSON(w, http.StatusOK, "product created successfully", product)
 }
 
 // UpdateOrCreateProductHandler updates a product in the repository or creates it if it doesn't exist.
 func (h *ProductHandler) UpdateOrCreateProductHandler(w http.ResponseWriter, r *http.Request) {
 	var product Product
-	err := request.ReadRequestJSON(r, &product)
+	err := request.JSON(r, &product)
 	if err != nil {
-		response.WriteError(w, http.StatusBadRequest, err)
+		response.Error(w, http.StatusBadRequest, "bad request")
 		return
 	}
 
 	product, err = h.ProductService.UpdateOrCreateProduct(product)
 	if err != nil {
-		switch err {
-		case internal.ErrInvalidProduct:
-			response.WriteError(w, http.StatusBadRequest, err)
-		case internal.ErrDuplicateCodeValue:
-			response.WriteError(w, http.StatusConflict, err)
+		switch {
+		case errors.Is(err, internal.ErrInvalidProduct):
+			response.Errorw(w, http.StatusBadRequest, err)
+		case errors.Is(err, internal.ErrDuplicateCodeValue):
+			response.Errorw(w, http.StatusConflict, err)
 		default:
-			response.WriteError(w, http.StatusInternalServerError, err)
+			response.Error(w, http.StatusInternalServerError, "internal server error")
 		}
 		return
 	}
 
-	response.WriteResponseJSON(w, http.StatusOK, "Product updated or created successfully", product)
+	response.JSON(w, http.StatusOK, "product updated or created successfully", product)
 }
 
 // UpdateProductHandler updates a product in the repository.
@@ -116,53 +117,52 @@ func (h *ProductHandler) UpdateProductHandler(w http.ResponseWriter, r *http.Req
 	var originalProduct Product
 	originalProduct, err := h.ProductService.GetProduct(chi.URLParam(r, "id"))
 	if err != nil {
-		switch err {
-		case internal.ErrInvalidID:
-			response.WriteError(w, http.StatusBadRequest, err)
-		case internal.ErrProductNotFound:
-			response.WriteError(w, http.StatusNotFound, err)
+		switch {
+		case errors.Is(err, internal.ErrInvalidID):
+			response.Errorw(w, http.StatusBadRequest, err)
+		case errors.Is(err, internal.ErrProductNotFound):
+			response.Errorw(w, http.StatusNotFound, err)
 		default:
-			response.WriteError(w, http.StatusInternalServerError, err)
+			response.Error(w, http.StatusInternalServerError, "internal server error")
 		}
 		return
 	}
 
-	err = request.ReadRequestJSON(r, &originalProduct)
+	err = request.JSON(r, &originalProduct)
 	if err != nil {
-		response.WriteError(w, http.StatusBadRequest, err)
+		response.Error(w, http.StatusBadRequest, "bad request")
 		return
 	}
 
 	originalProduct, err = h.ProductService.UpdateProduct(originalProduct)
 	if err != nil {
-		switch err {
-		case internal.ErrInvalidProduct:
-			response.WriteError(w, http.StatusBadRequest, err)
-		case internal.ErrDuplicateCodeValue:
-			response.WriteError(w, http.StatusConflict, err)
+		switch {
+		case errors.Is(err, internal.ErrInvalidProduct):
+			response.Errorw(w, http.StatusBadRequest, err)
+		case errors.Is(err, internal.ErrDuplicateCodeValue):
+			response.Errorw(w, http.StatusConflict, err)
 		default:
-			response.WriteError(w, http.StatusInternalServerError, err)
+			response.Error(w, http.StatusInternalServerError, "internal server error")
 		}
 		return
 	}
 
-	response.WriteResponseJSON(w, http.StatusOK, "Product updated successfully", originalProduct)
+	response.JSON(w, http.StatusOK, "Product updated successfully", originalProduct)
 }
 
 // DeleteProductHandler deletes a product from the repository by id.
 func (h *ProductHandler) DeleteProductHandler(w http.ResponseWriter, r *http.Request) {
 	err := h.ProductService.DeleteProduct(chi.URLParam(r, "id"))
 	if err != nil {
-		switch err {
-		case internal.ErrInvalidID:
-			response.WriteError(w, http.StatusBadRequest, err)
-		case internal.ErrProductNotFound:
-			response.WriteError(w, http.StatusNotFound, err)
+		switch {
+		case errors.Is(err, internal.ErrInvalidID):
+			response.Errorw(w, http.StatusBadRequest, err)
+		case errors.Is(err, internal.ErrProductNotFound):
+			response.Errorw(w, http.StatusNotFound, err)
 		default:
-			response.WriteError(w, http.StatusInternalServerError, err)
+			response.Error(w, http.StatusInternalServerError, "internal server error")
 		}
-		return
 	}
 
-	response.WriteResponseJSON(w, http.StatusOK, "Product deleted successfully", nil)
+	response.JSON(w, http.StatusOK, "Product deleted successfully", nil)
 }
