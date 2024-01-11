@@ -7,7 +7,6 @@ import (
 )
 
 func main() {
-	os.Setenv("Token", "themostsecrettoken")
 	// create and start server
 	server := application.NewServer(":8080")
 	if err := server.Start(); err != nil {

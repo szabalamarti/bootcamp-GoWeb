@@ -2,6 +2,7 @@ package application
 
 import (
 	"net/http"
+	"os"
 	"supermarket/internal/handler"
 	"supermarket/internal/repository"
 	"supermarket/internal/service"
@@ -25,6 +26,9 @@ func NewServer(address string) *Server {
 }
 
 func (s *Server) Start() error {
+	// token for auth
+	os.Setenv("Token", "themostsecrettoken")
+
 	// create Repository
 	repository := repository.NewProductRepository()
 	err := repository.LoadProducts("docs/db/products.json")
