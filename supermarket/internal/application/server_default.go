@@ -37,9 +37,6 @@ func NewServer(config ServerConfig) *Server {
 	if config.DbFile == "" {
 		config.DbFile = "docs/db/products.json"
 	}
-	if config.Token == "" {
-		config.Token = "themostsecrettoken"
-	}
 
 	return &Server{
 		host:   config.Host,
