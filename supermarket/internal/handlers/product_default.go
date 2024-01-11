@@ -17,6 +17,13 @@ type ProductHandler struct {
 	ProductService ProductServiceInterface
 }
 
+// NewProductHandler returns a new ProductHandler.
+func NewProductHandler(productService ProductServiceInterface) *ProductHandler {
+	return &ProductHandler{
+		ProductService: productService,
+	}
+}
+
 // GetPingHandler returns a pong message.
 func (h *ProductHandler) GetPingHandler(w http.ResponseWriter, r *http.Request) {
 	response.Text(w, http.StatusOK, "pong")

@@ -13,6 +13,13 @@ type ProductService struct {
 	ProductRepository ProductRepositoryInterface
 }
 
+// NewProductService creates a new ProductService.
+func NewProductService(productRepository ProductRepositoryInterface) *ProductService {
+	return &ProductService{
+		ProductRepository: productRepository,
+	}
+}
+
 // GetProducts returns the products from the repository.
 func (ps *ProductService) GetProducts() []Product {
 	return ps.ProductRepository.Get()

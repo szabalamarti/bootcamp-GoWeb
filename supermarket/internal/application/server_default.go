@@ -26,16 +26,16 @@ func NewServer(address string) *Server {
 
 func (s *Server) Start() error {
 	// create Repository
-	ps := &repository.ProductRepository{}
-	err := ps.LoadProducts("docs/db/products.json")
+	repository := repository.NewProductRepository()
+	err := repository.LoadProducts("docs/db/products.json")
 	if err != nil {
 		return err
 	}
-	ps.PrintProductsInfo()
+	repository.PrintProductsInfo()
 
 	// create service and handler
-	service := &service.ProductService{ProductRepository: ps}
-	handler := &handlers.ProductHandler{ProductService: service}
+	service := service.NewProductService(repository)
+	handler := handlers.NewProductHandler(service)
 
 	// create router and routes
 	router := chi.NewRouter()

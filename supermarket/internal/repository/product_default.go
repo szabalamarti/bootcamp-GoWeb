@@ -14,6 +14,14 @@ type ProductRepository struct {
 	LastId   int
 }
 
+// NewProductRepository creates a new ProductRepository.
+func NewProductRepository() *ProductRepository {
+	return &ProductRepository{
+		Products: make(map[int]Product),
+		LastId:   0,
+	}
+}
+
 // PrintProductsInfo prints the total of products loaded to the repository.
 func (ps *ProductRepository) PrintProductsInfo() {
 	totalProducts := len(ps.Products)
