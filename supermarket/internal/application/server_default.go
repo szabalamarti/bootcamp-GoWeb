@@ -13,26 +13,48 @@ import (
 )
 
 type Server struct {
-	address string
+	host   string
+	port   string
+	dbFile string
+	token  string
 }
 
-func NewServer(address string) *Server {
-	defaultAddress := ":8080"
-	if address == "" {
-		address = defaultAddress
+type ServerConfig struct {
+	Host   string
+	Port   string
+	DbFile string
+	Token  string
+}
+
+func NewServer(config ServerConfig) *Server {
+	// default values
+	if config.Host == "" {
+		config.Host = "localhost"
+	}
+	if config.Port == "" {
+		config.Port = "8080"
+	}
+	if config.DbFile == "" {
+		config.DbFile = "docs/db/products.json"
+	}
+	if config.Token == "" {
+		config.Token = "themostsecrettoken"
 	}
 
 	return &Server{
-		address: address,
+		host:   config.Host,
+		port:   config.Port,
+		dbFile: config.DbFile,
+		token:  config.Token,
 	}
 }
 
 func (s *Server) Start() error {
-	// token for auth
-	os.Setenv("Token", "themostsecrettoken")
+	// Set auth token from config
+	os.Setenv("Token", s.token)
 
 	// create Repository
-	storage := storage.NewProductStorage("docs/db/products.json")
+	storage := storage.NewProductStorage(s.dbFile)
 	repository := repository.NewProductRepository(storage)
 
 	// create service and handler
@@ -53,7 +75,7 @@ func (s *Server) Start() error {
 	})
 
 	// start server
-	fmt.Printf("Server started on port %s\n", s.address)
-	http.ListenAndServe(":8080", router)
+	fmt.Printf("Server started on %s:%s\n", s.host, s.port)
+	http.ListenAndServe(s.host+":"+s.port, router)
 	return nil
 }

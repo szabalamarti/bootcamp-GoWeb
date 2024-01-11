@@ -1,7 +1,6 @@
 package service
 
 import (
-	"fmt"
 	"strconv"
 	"supermarket/internal"
 	"time"
@@ -139,7 +138,6 @@ func (ps *ProductService) ValidateProduct(product Product, isUpdate bool) error 
 		if isUpdate && p.Id == product.Id {
 			continue
 		}
-		fmt.Println(p, product)
 		return internal.ErrDuplicateCodeValue
 	}
 
