@@ -44,13 +44,16 @@ func (pr *ProductRepository) SaveProducts() error {
 }
 
 // Get returns all products from the repository.
-func (pr *ProductRepository) Get() []Product {
-	pr.LoadProducts()
+func (pr *ProductRepository) Get() ([]Product, error) {
+	err := pr.LoadProducts()
+	if err != nil {
+		return nil, err
+	}
 	products := make([]Product, 0, len(pr.Products))
 	for _, product := range pr.Products {
 		products = append(products, product)
 	}
-	return products
+	return products, nil
 }
 
 // GetById returns a product from the repository by id.
@@ -66,7 +69,10 @@ func (pr *ProductRepository) GetById(id int) (Product, error) {
 // SearchByPrice returns the products from the repository that have a price greater than priceGt.
 func (pr *ProductRepository) SearchByPrice(priceGt float64) ([]Product, error) {
 	pr.LoadProducts()
-	products := pr.Get()
+	products, err := pr.Get()
+	if err != nil {
+		return nil, err
+	}
 	var filteredProducts []Product
 	for _, product := range products {
 		if product.Price > priceGt {

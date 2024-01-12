@@ -8,7 +8,7 @@ var (
 )
 
 type ProductRepositoryInterface interface {
-	Get() []Product
+	Get() ([]Product, error)
 	GetById(id int) (Product, error)
 	SearchByPrice(priceGt float64) ([]Product, error)
 	Save(product Product) (Product, error)

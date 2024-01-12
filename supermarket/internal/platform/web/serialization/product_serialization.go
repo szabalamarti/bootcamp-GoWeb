@@ -3,6 +3,7 @@ package serialization
 import internalProduct "supermarket/internal/product"
 
 type Product = internalProduct.Product
+type ConsumerPriceProducts = internalProduct.ConsumerPriceProducts
 
 type ProductRequest struct {
 	Name        string  `json:"name"`
@@ -21,6 +22,11 @@ type ProductResponse struct {
 	IsPublished bool    `json:"is_published"`
 	Expiration  string  `json:"expiration"`
 	Price       float64 `json:"price"`
+}
+
+type ConsumerPriceProductsResponse struct {
+	ProductsResponse []ProductResponse `json:"products"`
+	TotalPrice       float64           `json:"total_price"`
 }
 
 func ProductRequestToProduct(productRequest ProductRequest) Product {
@@ -63,4 +69,11 @@ func ProductsToProductsResponse(products []Product) []ProductResponse {
 		productsResponse[i] = ProductToProductResponse(product)
 	}
 	return productsResponse
+}
+
+func ConsumerPriceProductsToConsumerPriceProductsResponse(consumerPriceProducts ConsumerPriceProducts) ConsumerPriceProductsResponse {
+	return ConsumerPriceProductsResponse{
+		ProductsResponse: ProductsToProductsResponse(consumerPriceProducts.Products),
+		TotalPrice:       consumerPriceProducts.TotalPrice,
+	}
 }

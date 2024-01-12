@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"supermarket/internal/platform/web/request"
 	"supermarket/internal/platform/web/response"
 	"supermarket/internal/platform/web/serialization"
@@ -37,7 +38,11 @@ func (h *ProductHandler) GetPingHandler(w http.ResponseWriter, r *http.Request) 
 
 // GetProductsHandler returns the products from the repository.
 func (h *ProductHandler) GetProductsHandler(w http.ResponseWriter, r *http.Request) {
-	products := h.ProductService.GetProducts()
+	products, err := h.ProductService.GetProducts()
+	if err != nil {
+		response.Error(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
 	// serialize products to ProductResponseJSON
 	productsResponse := serialization.ProductsToProductsResponse(products)
 	response.JSON(w, http.StatusOK, "products fetched successfully", productsResponse)
@@ -248,4 +253,34 @@ func (h *ProductHandler) DeleteProductHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	response.Text(w, http.StatusOK, "Product deleted successfully")
+}
+
+// GetConsumerPriceProductsHandler returns a list of products indicated by ids and the total adjusted price
+func (h *ProductHandler) GetConsumerPriceHandler(w http.ResponseWriter, r *http.Request) {
+	// read list of ids from query params
+	listParam := r.URL.Query().Get("list")
+	// remove brackets
+	listParam = strings.Trim(listParam, "[]")
+	// split by comma
+	ids := strings.Split(listParam, ",")
+
+	// get consumer price products
+	consumerPriceProducts, err := h.ProductService.GetConsumerPriceProducts(ids)
+	if err != nil {
+		switch {
+		case errors.Is(err, internalProduct.ErrInvalidID):
+			response.Errorw(w, http.StatusBadRequest, err)
+		case errors.Is(err, internalProduct.ErrProductNotFound):
+			response.Errorw(w, http.StatusNotFound, err)
+		case errors.Is(err, internalProduct.ErrInsufficientQuantity):
+			response.Errorw(w, http.StatusConflict, err)
+		default:
+			response.Error(w, http.StatusInternalServerError, "internal server error")
+		}
+		return
+	}
+
+	// serialize consumerPriceProducts to ConsumerPriceProductsResponseJSON
+	consumerPriceProductsResponse := serialization.ConsumerPriceProductsToConsumerPriceProductsResponse(consumerPriceProducts)
+	response.JSON(w, http.StatusOK, "consumer price products fetched successfully", consumerPriceProductsResponse)
 }

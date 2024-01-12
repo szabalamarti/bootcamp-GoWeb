@@ -21,8 +21,12 @@ func NewProductService(productRepository ProductRepositoryInterface) *ProductSer
 }
 
 // GetProducts returns the products from the repository.
-func (ps *ProductService) GetProducts() []Product {
-	return ps.ProductRepository.Get()
+func (ps *ProductService) GetProducts() ([]Product, error) {
+	products, err := ps.ProductRepository.Get()
+	if err != nil {
+		return nil, err
+	}
+	return products, nil
 }
 
 // GetProduct returns a product from the repository by id.
@@ -122,6 +126,60 @@ func (ps *ProductService) DeleteProduct(id string) error {
 	return nil
 }
 
+// GetConsumerPriceProducts receives a list of ids and returns those products and the total price.
+func (ps *ProductService) GetConsumerPriceProducts(ids []string) (internalProduct.ConsumerPriceProducts, error) {
+	consumerProducts := internalProduct.ConsumerPriceProducts{
+		Products:   []Product{},
+		TotalPrice: 0,
+	}
+	// if the list is empty, return all products
+	if ids[0] == "" {
+		products, err := ps.ProductRepository.Get()
+		if err != nil {
+			return consumerProducts, err
+		}
+		for _, product := range products {
+			consumerProducts.TotalPrice += product.Price
+			consumerProducts.Products = append(consumerProducts.Products, product)
+		}
+		// if the list is not empty, return the products in the list
+	} else {
+		quantityMap := make(map[string]int)
+		for _, id := range ids {
+			productId, err := strconv.Atoi(id)
+			if err != nil {
+				return consumerProducts, internalProduct.ErrInvalidID
+			}
+
+			product, err := ps.ProductRepository.GetById(productId)
+			if err != nil {
+				return consumerProducts, internalProduct.ErrProductNotFound
+			}
+
+			// check the stock vs current quantity of a product
+			quantityMap[id]++
+			if quantityMap[id] > product.Quantity {
+				return consumerProducts, internalProduct.ErrInsufficientQuantity
+			}
+			consumerProducts.TotalPrice += product.Price
+			consumerProducts.Products = append(consumerProducts.Products, product)
+		}
+	}
+
+	// switch on the total amount of products
+	totalProducts := len(consumerProducts.Products)
+	switch {
+	case totalProducts < 10:
+		consumerProducts.TotalPrice *= 1.21
+	case totalProducts <= 20:
+		consumerProducts.TotalPrice *= 1.17
+	default:
+		consumerProducts.TotalPrice *= 1.15
+	}
+
+	return consumerProducts, nil
+}
+
 // ValidateProduct validates the product parameters.
 func (ps *ProductService) ValidateProduct(product Product, isUpdate bool) error {
 	// no value can be empty. Except is_published, where empty means false
@@ -130,7 +188,10 @@ func (ps *ProductService) ValidateProduct(product Product, isUpdate bool) error 
 	}
 
 	// check if CodeValue already exists and ids are different
-	products := ps.ProductRepository.Get()
+	products, err := ps.ProductRepository.Get()
+	if err != nil {
+		return err
+	}
 	for _, p := range products {
 		if p.CodeValue != product.CodeValue {
 			continue
@@ -142,7 +203,7 @@ func (ps *ProductService) ValidateProduct(product Product, isUpdate bool) error 
 	}
 
 	// product.Expiration must be in MM/DD/YYYY format
-	_, err := time.Parse("01/02/2006", product.Expiration)
+	_, err = time.Parse("01/02/2006", product.Expiration)
 	if err != nil {
 		return internalProduct.ErrInvalidProduct
 	}

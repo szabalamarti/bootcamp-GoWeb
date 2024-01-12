@@ -79,6 +79,7 @@ func (s *Server) Start() error {
 		router.Get("/", handler.GetProductsHandler)
 		router.Get("/{id}", handler.GetProductHandler)
 		router.Get("/search", handler.SearchProductsByPriceHandler)
+		router.Get("/consumer_price", handler.GetConsumerPriceHandler)
 
 		// subrouter with auth middleware
 		router.With(auMiddleware.Auth).Group(func(router chi.Router) {
