@@ -3,11 +3,13 @@ package application
 import (
 	"fmt"
 	"net/http"
-	"os"
-	"supermarket/internal/handler"
-	"supermarket/internal/repository"
-	"supermarket/internal/service"
-	"supermarket/internal/storage"
+	"supermarket/internal/auth"
+	"supermarket/internal/auth/middleware"
+	middlewareLog "supermarket/internal/platform/web/middleware"
+	"supermarket/internal/product/handler"
+	"supermarket/internal/product/repository"
+	"supermarket/internal/product/service"
+	"supermarket/internal/product/storage"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -47,8 +49,13 @@ func NewServer(config ServerConfig) *Server {
 }
 
 func (s *Server) Start() error {
-	// Set auth token from config
-	os.Setenv("Token", s.token)
+	// - dependencies
+	// -- authenticator
+	au := auth.NewAuthTokenBasic(s.token)
+	auMiddleware := middleware.NewAuthenticator(au)
+
+	// -- logger
+	lgMd := middlewareLog.NewLogger()
 
 	// create Repository
 	storage := storage.NewProductStorage(s.dbFile)
@@ -58,17 +65,28 @@ func (s *Server) Start() error {
 	service := service.NewProductService(repository)
 	handler := handler.NewProductHandler(service)
 
-	// create router and routes
+	// router
 	router := chi.NewRouter()
+
+	// - middlewares
+	// -- logger
+	router.Use(lgMd.Log)
+
+	// - routes
 	router.Get("/ping", handler.GetPingHandler)
+
 	router.Route("/products", func(router chi.Router) {
 		router.Get("/", handler.GetProductsHandler)
 		router.Get("/{id}", handler.GetProductHandler)
 		router.Get("/search", handler.SearchProductsByPriceHandler)
-		router.Post("/", handler.CreateProductHandler)
-		router.Patch("/{id}", handler.UpdateProductHandler)
-		router.Delete("/{id}", handler.DeleteProductHandler)
-		router.Put("/{id}", handler.UpdateOrCreateProductHandler)
+
+		// subrouter with auth middleware
+		router.With(auMiddleware.Auth).Group(func(router chi.Router) {
+			router.Post("/", handler.CreateProductHandler)
+			router.Patch("/{id}", handler.UpdateProductHandler)
+			router.Delete("/{id}", handler.DeleteProductHandler)
+			router.Put("/{id}", handler.UpdateOrCreateProductHandler)
+		})
 	})
 
 	// start server

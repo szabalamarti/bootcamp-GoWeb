@@ -1,4 +1,8 @@
-package handler
+package serialization
+
+import internalProduct "supermarket/internal/product"
+
+type Product = internalProduct.Product
 
 type ProductRequest struct {
 	Name        string  `json:"name"`

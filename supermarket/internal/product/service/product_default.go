@@ -2,12 +2,12 @@ package service
 
 import (
 	"strconv"
-	"supermarket/internal"
+	internalProduct "supermarket/internal/product"
 	"time"
 )
 
-type Product = internal.Product
-type ProductRepositoryInterface = internal.ProductRepositoryInterface
+type Product = internalProduct.Product
+type ProductRepositoryInterface = internalProduct.ProductRepositoryInterface
 
 type ProductService struct {
 	ProductRepository ProductRepositoryInterface
@@ -29,12 +29,12 @@ func (ps *ProductService) GetProducts() []Product {
 func (ps *ProductService) GetProduct(id string) (Product, error) {
 	productId, err := strconv.Atoi(id)
 	if err != nil {
-		return Product{}, internal.ErrInvalidID
+		return Product{}, internalProduct.ErrInvalidID
 	}
 
 	product, err := ps.ProductRepository.GetById(productId)
 	if err != nil {
-		return Product{}, internal.ErrProductNotFound
+		return Product{}, internalProduct.ErrProductNotFound
 	}
 
 	return product, nil
@@ -45,12 +45,12 @@ func (ps *ProductService) GetProduct(id string) (Product, error) {
 func (ps *ProductService) SearchProductsByPrice(priceGt string) ([]Product, error) {
 	price, err := strconv.ParseFloat(priceGt, 64)
 	if err != nil {
-		return nil, internal.ErrInvalidPriceGt
+		return nil, internalProduct.ErrInvalidPriceGt
 	}
 
 	products, err := ps.ProductRepository.SearchByPrice(price)
 	if err != nil {
-		return nil, internal.ErrProductNotFound
+		return nil, internalProduct.ErrProductNotFound
 	}
 
 	return products, nil
@@ -111,12 +111,12 @@ func (ps *ProductService) UpdateProduct(product Product) (Product, error) {
 func (ps *ProductService) DeleteProduct(id string) error {
 	productId, err := strconv.Atoi(id)
 	if err != nil {
-		return internal.ErrInvalidID
+		return internalProduct.ErrInvalidID
 	}
 
 	err = ps.ProductRepository.Delete(productId)
 	if err != nil {
-		return internal.ErrProductNotFound
+		return internalProduct.ErrProductNotFound
 	}
 
 	return nil
@@ -126,7 +126,7 @@ func (ps *ProductService) DeleteProduct(id string) error {
 func (ps *ProductService) ValidateProduct(product Product, isUpdate bool) error {
 	// no value can be empty. Except is_published, where empty means false
 	if product.Name == "" || product.Quantity == 0 || product.CodeValue == "" || product.Expiration == "" || product.Price == 0 {
-		return internal.ErrInvalidProduct
+		return internalProduct.ErrInvalidProduct
 	}
 
 	// check if CodeValue already exists and ids are different
@@ -138,13 +138,13 @@ func (ps *ProductService) ValidateProduct(product Product, isUpdate bool) error 
 		if isUpdate && p.Id == product.Id {
 			continue
 		}
-		return internal.ErrDuplicateCodeValue
+		return internalProduct.ErrDuplicateCodeValue
 	}
 
 	// product.Expiration must be in MM/DD/YYYY format
 	_, err := time.Parse("01/02/2006", product.Expiration)
 	if err != nil {
-		return internal.ErrInvalidProduct
+		return internalProduct.ErrInvalidProduct
 	}
 
 	return nil

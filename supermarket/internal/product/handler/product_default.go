@@ -3,20 +3,21 @@ package handler
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net/http"
 	"strconv"
-	"supermarket/internal"
 	"supermarket/internal/platform/web/request"
 	"supermarket/internal/platform/web/response"
+	"supermarket/internal/platform/web/serialization"
+	"supermarket/internal/platform/web/validator"
+	internalProduct "supermarket/internal/product"
 
 	"github.com/go-chi/chi/v5"
 )
 
-type Product = internal.Product
+type Product = internalProduct.Product
 
-type ProductServiceInterface = internal.ProductServiceInterface
+type ProductServiceInterface = internalProduct.ProductServiceInterface
 
 type ProductHandler struct {
 	ProductService ProductServiceInterface
@@ -38,7 +39,7 @@ func (h *ProductHandler) GetPingHandler(w http.ResponseWriter, r *http.Request) 
 func (h *ProductHandler) GetProductsHandler(w http.ResponseWriter, r *http.Request) {
 	products := h.ProductService.GetProducts()
 	// serialize products to ProductResponseJSON
-	productsResponse := ProductsToProductsResponse(products)
+	productsResponse := serialization.ProductsToProductsResponse(products)
 	response.JSON(w, http.StatusOK, "products fetched successfully", productsResponse)
 }
 
@@ -47,9 +48,9 @@ func (h *ProductHandler) GetProductHandler(w http.ResponseWriter, r *http.Reques
 	product, err := h.ProductService.GetProduct(chi.URLParam(r, "id"))
 	if err != nil {
 		switch {
-		case errors.Is(err, internal.ErrInvalidID):
+		case errors.Is(err, internalProduct.ErrInvalidID):
 			response.Errorw(w, http.StatusBadRequest, err)
-		case errors.Is(err, internal.ErrProductNotFound):
+		case errors.Is(err, internalProduct.ErrProductNotFound):
 			response.Errorw(w, http.StatusNotFound, err)
 		default:
 			response.Error(w, http.StatusInternalServerError, "internal server error")
@@ -58,7 +59,7 @@ func (h *ProductHandler) GetProductHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	// serialize product to ProductResponseJSON
-	productResponse := ProductToProductResponse(product)
+	productResponse := serialization.ProductToProductResponse(product)
 	response.JSON(w, http.StatusOK, "product fetched successfully", productResponse)
 }
 
@@ -67,7 +68,7 @@ func (h *ProductHandler) SearchProductsByPriceHandler(w http.ResponseWriter, r *
 	products, err := h.ProductService.SearchProductsByPrice(r.URL.Query().Get("priceGt"))
 	if err != nil {
 		switch err {
-		case internal.ErrInvalidPriceGt:
+		case internalProduct.ErrInvalidPriceGt:
 			response.Errorw(w, http.StatusBadRequest, err)
 		default:
 			response.Error(w, http.StatusInternalServerError, "internal server error")
@@ -76,37 +77,30 @@ func (h *ProductHandler) SearchProductsByPriceHandler(w http.ResponseWriter, r *
 	}
 
 	// serialize products to ProductResponseJSON
-	productsResponse := ProductsToProductsResponse(products)
+	productsResponse := serialization.ProductsToProductsResponse(products)
 	response.JSON(w, http.StatusOK, "products fetched successfully", productsResponse)
 }
 
 // CreateProductHandler adds a product to the repository.
 func (h *ProductHandler) CreateProductHandler(w http.ResponseWriter, r *http.Request) {
-	// authorization
-	err := Authorize(r, w)
-	if err != nil {
-		response.Errorw(w, http.StatusUnauthorized, err)
-		return
-	}
-
 	// read product from request
-	var productRequest ProductRequest
-	err = request.JSON(r, &productRequest)
+	var productRequest serialization.ProductRequest
+	err := request.JSON(r, &productRequest)
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, "bad request")
 		return
 	}
 
 	// deserialize productRequest to Product
-	product := ProductRequestToProduct(productRequest)
+	product := serialization.ProductRequestToProduct(productRequest)
 
 	// create product
 	product, err = h.ProductService.CreateProduct(product)
 	if err != nil {
 		switch {
-		case errors.Is(err, internal.ErrInvalidProduct):
+		case errors.Is(err, internalProduct.ErrInvalidProduct):
 			response.Errorw(w, http.StatusBadRequest, err)
-		case errors.Is(err, internal.ErrDuplicateCodeValue):
+		case errors.Is(err, internalProduct.ErrDuplicateCodeValue):
 			response.Errorw(w, http.StatusConflict, err)
 		default:
 			response.Error(w, http.StatusInternalServerError, "internal server error")
@@ -115,19 +109,12 @@ func (h *ProductHandler) CreateProductHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	// serialize product to ProductResponseJSON
-	productResponse := ProductToProductResponse(product)
+	productResponse := serialization.ProductToProductResponse(product)
 	response.JSON(w, http.StatusOK, "product created successfully", productResponse)
 }
 
 // UpdateOrCreateProductHandler updates a product in the repository or creates it if it doesn't exist.
 func (h *ProductHandler) UpdateOrCreateProductHandler(w http.ResponseWriter, r *http.Request) {
-	// authorization
-	err := Authorize(r, w)
-	if err != nil {
-		response.Errorw(w, http.StatusUnauthorized, err)
-		return
-	}
-
 	// get id from url
 	id, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
@@ -150,14 +137,14 @@ func (h *ProductHandler) UpdateOrCreateProductHandler(w http.ResponseWriter, r *
 		return
 	}
 
-	err = validateKeyExistence(bodyMap, "name", "quantity", "code_value", "expiration", "price")
+	err = validator.ValidateRequiredKeys(bodyMap, "name", "quantity", "code_value", "expiration", "price")
 	if err != nil {
 		response.Errorw(w, http.StatusBadRequest, err)
 		return
 	}
 
 	// read product from bytes
-	var productRequest ProductRequest
+	var productRequest serialization.ProductRequest
 	err = json.Unmarshal(body, &productRequest)
 	if err != nil {
 		response.Error(w, http.StatusBadRequest, "bad request")
@@ -165,16 +152,16 @@ func (h *ProductHandler) UpdateOrCreateProductHandler(w http.ResponseWriter, r *
 	}
 
 	// deserialize productRequest to Product
-	product := ProductRequestToProduct(productRequest)
+	product := serialization.ProductRequestToProduct(productRequest)
 	product.Id = id
 
 	// update or create product
 	product, err = h.ProductService.UpdateOrCreateProduct(product)
 	if err != nil {
 		switch {
-		case errors.Is(err, internal.ErrInvalidProduct):
+		case errors.Is(err, internalProduct.ErrInvalidProduct):
 			response.Errorw(w, http.StatusBadRequest, err)
-		case errors.Is(err, internal.ErrDuplicateCodeValue):
+		case errors.Is(err, internalProduct.ErrDuplicateCodeValue):
 			response.Errorw(w, http.StatusConflict, err)
 		default:
 			response.Error(w, http.StatusInternalServerError, "internal server error")
@@ -183,19 +170,12 @@ func (h *ProductHandler) UpdateOrCreateProductHandler(w http.ResponseWriter, r *
 	}
 
 	// serialize product to ProductResponse
-	productResponse := ProductToProductResponse(product)
+	productResponse := serialization.ProductToProductResponse(product)
 	response.JSON(w, http.StatusOK, "product updated or created successfully", productResponse)
 }
 
 // UpdateProductHandler updates a product in the repository.
 func (h *ProductHandler) UpdateProductHandler(w http.ResponseWriter, r *http.Request) {
-	// authorization
-	err := Authorize(r, w)
-	if err != nil {
-		response.Errorw(w, http.StatusUnauthorized, err)
-		return
-	}
-
 	// get id from url
 	id, err := strconv.Atoi(chi.URLParam(r, "id"))
 	if err != nil {
@@ -208,9 +188,9 @@ func (h *ProductHandler) UpdateProductHandler(w http.ResponseWriter, r *http.Req
 	originalProduct, err = h.ProductService.GetProduct(chi.URLParam(r, "id"))
 	if err != nil {
 		switch {
-		case errors.Is(err, internal.ErrInvalidID):
+		case errors.Is(err, internalProduct.ErrInvalidID):
 			response.Errorw(w, http.StatusBadRequest, err)
-		case errors.Is(err, internal.ErrProductNotFound):
+		case errors.Is(err, internalProduct.ErrProductNotFound):
 			response.Errorw(w, http.StatusNotFound, err)
 		default:
 			response.Error(w, http.StatusInternalServerError, "internal server error")
@@ -219,7 +199,7 @@ func (h *ProductHandler) UpdateProductHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	// serialize originalProduct to ProductRequest
-	updateProductRequest := ProductToProductRequest(originalProduct)
+	updateProductRequest := serialization.ProductToProductRequest(originalProduct)
 
 	// read productRequest from request into updateProductRequest
 	err = request.JSON(r, &updateProductRequest)
@@ -229,16 +209,16 @@ func (h *ProductHandler) UpdateProductHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	// deserialize updateProductRequest to Product
-	updateProduct := ProductRequestToProduct(updateProductRequest)
+	updateProduct := serialization.ProductRequestToProduct(updateProductRequest)
 	updateProduct.Id = id
 
 	// update product
 	updateProduct, err = h.ProductService.UpdateProduct(updateProduct)
 	if err != nil {
 		switch {
-		case errors.Is(err, internal.ErrInvalidProduct):
+		case errors.Is(err, internalProduct.ErrInvalidProduct):
 			response.Errorw(w, http.StatusBadRequest, err)
-		case errors.Is(err, internal.ErrDuplicateCodeValue):
+		case errors.Is(err, internalProduct.ErrDuplicateCodeValue):
 			response.Errorw(w, http.StatusConflict, err)
 		default:
 			response.Error(w, http.StatusInternalServerError, "internal server error")
@@ -247,26 +227,19 @@ func (h *ProductHandler) UpdateProductHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	// serialize updateProduct to ProductResponseJSON
-	updateProductResponse := ProductToProductResponse(updateProduct)
+	updateProductResponse := serialization.ProductToProductResponse(updateProduct)
 	response.JSON(w, http.StatusOK, "Product updated successfully", updateProductResponse)
 }
 
 // DeleteProductHandler deletes a product from the repository by id.
 func (h *ProductHandler) DeleteProductHandler(w http.ResponseWriter, r *http.Request) {
-	// authorization
-	err := Authorize(r, w)
-	if err != nil {
-		response.Errorw(w, http.StatusUnauthorized, err)
-		return
-	}
-
 	// delete product
-	err = h.ProductService.DeleteProduct(chi.URLParam(r, "id"))
+	err := h.ProductService.DeleteProduct(chi.URLParam(r, "id"))
 	if err != nil {
 		switch {
-		case errors.Is(err, internal.ErrInvalidID):
+		case errors.Is(err, internalProduct.ErrInvalidID):
 			response.Errorw(w, http.StatusBadRequest, err)
-		case errors.Is(err, internal.ErrProductNotFound):
+		case errors.Is(err, internalProduct.ErrProductNotFound):
 			response.Errorw(w, http.StatusNotFound, err)
 		default:
 			response.Error(w, http.StatusInternalServerError, "internal server error")
@@ -275,13 +248,4 @@ func (h *ProductHandler) DeleteProductHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	response.Text(w, http.StatusOK, "Product deleted successfully")
-}
-
-func validateKeyExistence(m map[string]any, keys ...string) error {
-	for _, key := range keys {
-		if _, ok := m[key]; !ok {
-			return fmt.Errorf("key %s not found", key)
-		}
-	}
-	return nil
 }

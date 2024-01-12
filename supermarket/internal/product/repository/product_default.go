@@ -1,19 +1,19 @@
 package repository
 
 import (
-	"supermarket/internal"
+	internalProduct "supermarket/internal/product"
 )
 
-type Product = internal.Product
+type Product = internalProduct.Product
 
 type ProductRepository struct {
-	Storage  internal.ProductStorageInterface
+	Storage  internalProduct.ProductStorageInterface
 	Products map[int]Product
 	LastId   int
 }
 
 // NewProductRepository creates a new ProductRepository.
-func NewProductRepository(storage internal.ProductStorageInterface) *ProductRepository {
+func NewProductRepository(storage internalProduct.ProductStorageInterface) *ProductRepository {
 	return &ProductRepository{
 		Storage: storage,
 	}
@@ -58,7 +58,7 @@ func (pr *ProductRepository) GetById(id int) (Product, error) {
 	pr.LoadProducts()
 	product, ok := pr.Products[id]
 	if !ok {
-		return Product{}, internal.ErrProductNotFound
+		return Product{}, internalProduct.ErrProductNotFound
 	}
 	return product, nil
 }
@@ -103,7 +103,7 @@ func (pr *ProductRepository) Update(product Product) (Product, error) {
 	pr.LoadProducts()
 	_, ok := pr.Products[product.Id]
 	if !ok {
-		return Product{}, internal.ErrProductNotFound
+		return Product{}, internalProduct.ErrProductNotFound
 	}
 	pr.Products[product.Id] = product
 	pr.SaveProducts()
@@ -115,7 +115,7 @@ func (pr *ProductRepository) Delete(id int) error {
 	pr.LoadProducts()
 	_, ok := pr.Products[id]
 	if !ok {
-		return internal.ErrProductNotFound
+		return internalProduct.ErrProductNotFound
 	}
 	delete(pr.Products, id)
 	pr.SaveProducts()
