@@ -115,7 +115,7 @@ func (h *ProductHandler) CreateProductHandler(w http.ResponseWriter, r *http.Req
 
 	// serialize product to ProductResponseJSON
 	productResponse := serialization.ProductToProductResponse(product)
-	response.JSON(w, http.StatusOK, "product created successfully", productResponse)
+	response.JSON(w, http.StatusCreated, "product created successfully", productResponse)
 }
 
 // UpdateOrCreateProductHandler updates a product in the repository or creates it if it doesn't exist.
@@ -252,7 +252,7 @@ func (h *ProductHandler) DeleteProductHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	response.Text(w, http.StatusOK, "Product deleted successfully")
+	response.Text(w, http.StatusOK, "product deleted successfully")
 }
 
 // GetConsumerPriceProductsHandler returns a list of products indicated by ids and the total adjusted price
