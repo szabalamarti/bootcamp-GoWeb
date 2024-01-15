@@ -23,9 +23,7 @@ type Authenticator struct {
 func (a *Authenticator) Auth(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// before
-		// get token
 		token := r.Header.Get("Token")
-
 		// validate token
 		if err := a.au.Auth(token); err != nil {
 			response.Error(w, http.StatusUnauthorized, "Unauthorized")
@@ -34,8 +32,5 @@ func (a *Authenticator) Auth(handler http.Handler) http.Handler {
 
 		// call
 		handler.ServeHTTP(w, r)
-
-		// after
-		// ...
 	})
 }
