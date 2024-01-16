@@ -36,6 +36,29 @@ func TestGetTotalAmountTickets(t *testing.T) {
 		require.Equal(t, http.StatusOK, w.Code)
 		require.JSONEq(t, expected, w.Body.String())
 	})
+	t.Run("error", func(t *testing.T) {
+		// ARRANGE
+		// create the mock of the service
+		service := new(service.ServiceTicketDefaultMock)
+		service.On("GetTotalAmountTickets").Return(0, errors.New("error getting the tickets"))
+		expected := `{"message":"error getting the tickets", "status":"Internal Server Error"}`
+		// create the handler
+		handler := NewHandlerTicketDefault(service)
+		// create the request
+		req := httptest.NewRequest("GET", "/tickets/total", nil)
+		// create the response
+		w := httptest.NewRecorder()
+		// create the function
+		handfunc := http.HandlerFunc(handler.GetTotalAmountTickets())
+
+		// ACT
+		handfunc.ServeHTTP(w, req)
+
+		// ASSERT
+		service.AssertCalled(t, "GetTotalAmountTickets")
+		require.Equal(t, http.StatusInternalServerError, w.Code)
+		require.JSONEq(t, expected, w.Body.String())
+	})
 }
 
 func TestGetTicketsAmountByDestinationCountry(t *testing.T) {
