@@ -3,15 +3,15 @@ package internal
 // TicketAttributes is an struct that represents a ticket
 type TicketAttributes struct {
 	// Name represents the name of the owner of the ticket
-	Name string `json:"name"`
+	Name string
 	// Email represents the email of the owner of the ticket
-	Email string `json:"email"`
+	Email string
 	// Country represents the destination country of the ticket
-	Country string `json:"country"`
+	Country string
 	// Hour represents the hour of the ticket
-	Hour string `json:"hour"`
+	Hour string
 	// Price represents the price of the ticket
-	Price float64 `json:"price"`
+	Price float64
 }
 
 // Ticket represents a ticket
