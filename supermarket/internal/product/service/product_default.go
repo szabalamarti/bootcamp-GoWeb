@@ -128,55 +128,10 @@ func (ps *ProductService) DeleteProduct(id string) error {
 
 // GetConsumerPriceProducts receives a list of ids and returns those products and the total price.
 func (ps *ProductService) GetConsumerPriceProducts(ids []string) (internalProduct.ConsumerPriceProducts, error) {
-	consumerProducts := internalProduct.ConsumerPriceProducts{
-		Products:   []Product{},
-		TotalPrice: 0,
+	consumerProducts, err := ps.ProductRepository.GetConsumerPriceProducts(ids)
+	if err != nil {
+		return consumerProducts, err
 	}
-	// if the list is empty, return all products
-	if ids[0] == "" {
-		products, err := ps.ProductRepository.Get()
-		if err != nil {
-			return consumerProducts, err
-		}
-		for _, product := range products {
-			consumerProducts.TotalPrice += product.Price
-			consumerProducts.Products = append(consumerProducts.Products, product)
-		}
-		// if the list is not empty, return the products in the list
-	} else {
-		quantityMap := make(map[string]int)
-		for _, id := range ids {
-			productId, err := strconv.Atoi(id)
-			if err != nil {
-				return consumerProducts, internalProduct.ErrInvalidID
-			}
-
-			product, err := ps.ProductRepository.GetById(productId)
-			if err != nil {
-				return consumerProducts, internalProduct.ErrProductNotFound
-			}
-
-			// check the stock vs current quantity of a product
-			quantityMap[id]++
-			if quantityMap[id] > product.Quantity {
-				return consumerProducts, internalProduct.ErrInsufficientQuantity
-			}
-			consumerProducts.TotalPrice += product.Price
-			consumerProducts.Products = append(consumerProducts.Products, product)
-		}
-	}
-
-	// switch on the total amount of products
-	totalProducts := len(consumerProducts.Products)
-	switch {
-	case totalProducts < 10:
-		consumerProducts.TotalPrice *= 1.21
-	case totalProducts <= 20:
-		consumerProducts.TotalPrice *= 1.17
-	default:
-		consumerProducts.TotalPrice *= 1.15
-	}
-
 	return consumerProducts, nil
 }
 

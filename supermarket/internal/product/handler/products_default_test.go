@@ -7,63 +7,21 @@ import (
 	"strings"
 	internalProduct "supermarket/internal/product"
 	"supermarket/internal/product/handler"
+	"supermarket/internal/product/service"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-type ProductServiceInterface struct {
-	mock.Mock
-}
-
-func (m *ProductServiceInterface) GetProducts() ([]internalProduct.Product, error) {
-	args := m.Called()
-	return args.Get(0).([]internalProduct.Product), args.Error(1)
-}
-
-func (m *ProductServiceInterface) CreateProduct(p internalProduct.Product) (internalProduct.Product, error) {
-	args := m.Called(p)
-	return args.Get(0).(internalProduct.Product), args.Error(1)
-}
-
-func (m *ProductServiceInterface) GetProduct(id string) (internalProduct.Product, error) {
-	args := m.Called(id)
-	return args.Get(0).(internalProduct.Product), args.Error(1)
-}
-
-func (m *ProductServiceInterface) SearchProductsByPrice(priceGt string) ([]internalProduct.Product, error) {
-	args := m.Called(priceGt)
-	return args.Get(0).([]internalProduct.Product), args.Error(1)
-}
-
-func (m *ProductServiceInterface) UpdateOrCreateProduct(p internalProduct.Product) (internalProduct.Product, error) {
-	args := m.Called(p)
-	return args.Get(0).(internalProduct.Product), args.Error(1)
-}
-
-func (m *ProductServiceInterface) UpdateProduct(p internalProduct.Product) (internalProduct.Product, error) {
-	args := m.Called(p)
-	return args.Get(0).(internalProduct.Product), args.Error(1)
-}
-
-func (m *ProductServiceInterface) DeleteProduct(id string) error {
-	args := m.Called(id)
-	return args.Error(0)
-}
-
-func (m *ProductServiceInterface) GetConsumerPriceProducts(ids []string) (internalProduct.ConsumerPriceProducts, error) {
-	args := m.Called(ids)
-	return args.Get(0).(internalProduct.ConsumerPriceProducts), args.Error(1)
-}
+type ProductServiceMock = service.ProductServiceMock
 
 // TestGetProducts tests the GetProductsHandler method.
 func TestGetProducts(t *testing.T) {
 	t.Run("success - get products", func(t *testing.T) {
 		// arrange
 		// create a mock of ProductServiceInterface
-		productService := new(ProductServiceInterface)
+		productService := new(ProductServiceMock)
 		products := []internalProduct.Product{
 			{
 				Id:          1,
@@ -136,7 +94,7 @@ func TestGetProduct(t *testing.T) {
 	t.Run("success - get product", func(t *testing.T) {
 		// arrange
 		// create a mock of ProductServiceInterface
-		productService := new(ProductServiceInterface)
+		productService := new(ProductServiceMock)
 		// create a product
 		product := internalProduct.Product{
 			Id:          1,
@@ -195,7 +153,7 @@ func TestGetProduct(t *testing.T) {
 		// expected response
 		expectedResponse := `{"message":"invalid id", "status":"Bad Request"}`
 		// create a mock of ProductServiceInterface
-		productService := new(ProductServiceInterface)
+		productService := new(ProductServiceMock)
 		productService.On("GetProduct", "bad id").Return(internalProduct.Product{}, internalProduct.ErrInvalidID)
 
 		// create a new ProductHandler
@@ -228,7 +186,7 @@ func TestGetProduct(t *testing.T) {
 		// expected response
 		expectedResponse := `{"message":"product not found", "status":"Not Found"}`
 		// create a mock of ProductServiceInterface
-		productService := new(ProductServiceInterface)
+		productService := new(ProductServiceMock)
 		productService.On("GetProduct", "1").Return(internalProduct.Product{}, internalProduct.ErrProductNotFound)
 
 		// create a new ProductHandler
@@ -263,7 +221,7 @@ func TestCreateProduct(t *testing.T) {
 	t.Run("success - create product", func(t *testing.T) {
 		// arrange
 		// create a mock of ProductServiceInterface
-		productService := new(ProductServiceInterface)
+		productService := new(ProductServiceMock)
 		// create a product
 		product := internalProduct.Product{
 			Id:          0,
@@ -324,7 +282,7 @@ func TestCreateProduct(t *testing.T) {
 		// expected response
 		expectedResponse := `{"message":"bad request", "status":"Bad Request"}`
 		// create a mock of ProductServiceInterface
-		productService := new(ProductServiceInterface)
+		productService := new(ProductServiceMock)
 		// body
 		body := `a really bad json body`
 		// create a new ProductHandler
@@ -347,7 +305,7 @@ func TestCreateProduct(t *testing.T) {
 		// expected response
 		expectedResponse := `{"message":"invalid product parameters", "status":"Bad Request"}`
 		// create a mock of ProductServiceInterface
-		productService := new(ProductServiceInterface)
+		productService := new(ProductServiceMock)
 		// create a product
 		product := internalProduct.Product{
 			Id:          0,
@@ -388,7 +346,7 @@ func TestCreateProduct(t *testing.T) {
 		// expected response
 		expectedResponse := `{"message":"duplicated code value", "status":"Conflict"}`
 		// create a mock of ProductServiceInterface
-		productService := new(ProductServiceInterface)
+		productService := new(ProductServiceMock)
 		// create a product
 		product := internalProduct.Product{
 			Id:          0,
@@ -430,7 +388,7 @@ func TestDeleteProduct(t *testing.T) {
 	t.Run("success - delete product", func(t *testing.T) {
 		// arrange
 		// create a mock of ProductServiceInterface
-		productService := new(ProductServiceInterface)
+		productService := new(ProductServiceMock)
 		// create the expected response
 		expectedResponse := "product deleted successfully"
 
@@ -466,7 +424,7 @@ func TestDeleteProduct(t *testing.T) {
 	t.Run("fail - delete product not found", func(t *testing.T) {
 		// arrange
 		// create a mock of ProductServiceInterface
-		productService := new(ProductServiceInterface)
+		productService := new(ProductServiceMock)
 
 		// create the expected response
 		expectedResponse := `{"message":"product not found", "status":"Not Found"}`
@@ -502,7 +460,7 @@ func TestDeleteProduct(t *testing.T) {
 	t.Run("fail - delete product invalid id", func(t *testing.T) {
 		// arrange
 		// create a mock of ProductServiceInterface
-		productService := new(ProductServiceInterface)
+		productService := new(ProductServiceMock)
 		productService.On("DeleteProduct", "1").Return(internalProduct.ErrInvalidID)
 
 		// create the expected response

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"strconv"
 	internalProduct "supermarket/internal/product"
 )
 
@@ -126,4 +127,55 @@ func (pr *ProductRepository) Delete(id int) error {
 	delete(pr.Products, id)
 	pr.SaveProducts()
 	return nil
+}
+
+// GetConsumerPriceProducts receives a list of ids and returns those products and the total price.
+func (pr *ProductRepository) GetConsumerPriceProducts(ids []string) (internalProduct.ConsumerPriceProducts, error) {
+	consumerProducts := internalProduct.ConsumerPriceProducts{
+		Products:   []Product{},
+		TotalPrice: 0,
+	}
+
+	if ids[0] == "" {
+		products, err := pr.Get()
+		if err != nil {
+			return consumerProducts, err
+		}
+		for _, product := range products {
+			consumerProducts.TotalPrice += product.Price
+			consumerProducts.Products = append(consumerProducts.Products, product)
+		}
+	} else {
+		quantityMap := make(map[string]int)
+		for _, id := range ids {
+			productId, err := strconv.Atoi(id)
+			if err != nil {
+				return consumerProducts, internalProduct.ErrInvalidID
+			}
+
+			product, err := pr.GetById(productId)
+			if err != nil {
+				return consumerProducts, internalProduct.ErrProductNotFound
+			}
+
+			quantityMap[id]++
+			if quantityMap[id] > product.Quantity {
+				return consumerProducts, internalProduct.ErrInsufficientQuantity
+			}
+			consumerProducts.TotalPrice += product.Price
+			consumerProducts.Products = append(consumerProducts.Products, product)
+		}
+	}
+
+	totalProducts := len(consumerProducts.Products)
+	switch {
+	case totalProducts < 10:
+		consumerProducts.TotalPrice *= 1.21
+	case totalProducts <= 20:
+		consumerProducts.TotalPrice *= 1.17
+	default:
+		consumerProducts.TotalPrice *= 1.15
+	}
+
+	return consumerProducts, nil
 }

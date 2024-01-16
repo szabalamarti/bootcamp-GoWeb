@@ -15,4 +15,5 @@ type ProductRepositoryInterface interface {
 	SaveOrUpdate(product Product) (Product, error)
 	Update(product Product) (Product, error)
 	Delete(id int) error
+	GetConsumerPriceProducts(ids []string) (ConsumerPriceProducts, error)
 }
